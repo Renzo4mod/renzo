@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Renzo - AI Music Studio</title>
+    <style>
+        :root {
+            --bg: #050505;
+            --surface: #0f0f0f;
+            --card: #161616;
+            --border: #252525;
+            --text-main: #ffffff;
+            --text-sub: #888;
+            --accent: #6c5ce7;
+            --accent-hover: #5a4ad1;
+            --accent-glow: rgba(108, 92, 231, 0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { background: var(--bg); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+
+        /* Navbar */
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 5%; border-bottom: 1px solid var(--border); background: rgba(5,5,5,0.8); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100; }
+        .logo { font-weight: 800; font-size: 1.2rem; font-style: italic; letter-spacing: -0.5px; }
+        .nav-actions { display: flex; gap: 15px; align-items: center; }
+        .btn-nav { background: transparent; border: 1px solid var(--border); color: var(--text-main); padding: 8px 20px; border-radius: 20px; cursor: pointer; transition: all 0.2s; }
+        .btn-nav.primary { background: var(--text-main); color: #000; border: none; font-weight: 600; }
+        .btn-nav:hover { border-color: var(--text-main); }
+        .btn-nav.primary:hover { background: #ddd; }
+
+        /* Main Container */
+        .container { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 40px 20px; position: relative; overflow: hidden; }
+        .bg-glow { position: absolute; width: 600px; height: 600px; background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%); top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 0; opacity: 0.5; pointer-events: none; }
+        
+        h1 { font-size: 3rem; text-align: center; margin-bottom: 15px; z-index: 1; line-height: 1.2; }
+        .highlight { color: var(--accent); }
+        .sub { color: var(--text-sub); margin-bottom: 40px; z-index: 1; text-align: center; max-width: 400px; }
+
+        /* Studio Card */
+        .studio-card { width: 100%; max-width: 500px; background: var(--card); padding: 30px; border-radius: 20px; border: 1px solid var(--border); z-index: 1; position: relative; }
+        
+        .input-group { margin-bottom: 20px; }
+        .label { display: block; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-sub); margin-bottom: 8px; }
+        
+        .input-main { width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text-main); padding: 15px; border-radius: 10px; font-size: 1rem; outline: none; transition: border-color 0.2s; }
+        .input-main:focus { border-color: var(--accent); }
+
+        /* Style Selector */
+        .styles { display: flex; flex-wrap: wrap; gap: 8px; }
+        .chip { padding: 6px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; font-size: 0.85rem; color: var(--text-sub); cursor: pointer; transition: all 0.2s; }
+        .chip.active { background: var(--accent); border-color: var(--accent); color: white; box-shadow: 0 4px 15px var(--accent-glow); }
+        .chip:hover:not(.active) { border-color: var(--text-main); color: var(--text-main); }
+
+        /* Generate Button */
+        .btn-generate { width: 100%; padding: 15px; border-radius: 10px; border: none; background: var(--accent); color: white; font-size: 1rem; font-weight: 600; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; transition: all 0.2s; }
+        .btn-generate:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
+        .btn-generate:disabled { background: #333; color: #666; cursor: not-allowed; transform: none; }
+
+        /* Player */
+        .player-wrapper { margin-top: 20px; display: none; animation: fadeIn 0.5s; }
+        audio { width: 100%; border-radius: 10px; background: transparent; }
+        
+        /* Visualizer */
+        .loader { display: flex; gap: 4px; justify-content: center; padding: 15px; }
+        .bar { width: 4px; height: 20px; background: var(--accent); border-radius: 2px; animation: sound 0.5s infinite ease alternate; }
+        .bar:nth-child(2) { animation-delay: 0.1s; }
+        .bar:nth-child(3) { animation-delay: 0.2s; }
+        .bar:nth-child(4) { animation-delay: 0.3s; }
+        .bar:nth-child(5) { animation-delay: 0.4s; }
+
+        @keyframes sound { to { height: 35px; } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 200; backdrop-filter: blur(5px); }
+        .modal { background: var(--card); padding: 40px; border-radius: 20px; width: 350px; text-align: center; border: 1px solid var(--border); }
+        .modal h2 { margin-bottom: 10px; }
+        .modal p { color: var(--text-sub); font-size: 0.9rem; margin-bottom: 20px; }
+        .modal input { width: 100%; padding: 12px; background: var(--surface); border: 1px solid var(--border); color: white; border-radius: 8px; margin-bottom: 15px; outline: none; }
+        .modal button { width: 100%; padding: 12px; background: var(--text-main); color: black; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .modal button:hover { background: #ddd; }
+
+        .spinner { border: 2px solid rgba(255,255,255,0.3); border-top: 2px solid white; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        footer { padding: 20px; text-align: center; color: var(--text-sub); font-size: 0.8rem; border-top: 1px solid var(--border); }
+    </style>
+</head>
+<body>
+
+    <!-- Nav -->
+    <nav>
+        <div class="logo">Renzo</div>
+        <div class="nav-actions">
+            <span id="user-display" style="color:var(--text-sub); font-size:0.9rem; display:none;"></span>
+            <button id="auth-btn" class="btn-nav primary" onclick="openModal()">Login</button>
+        </div>
+    </nav>
+
+    <!-- Main -->
+    <div class="container">
+        <div class="bg-glow"></div>
+        <h1>Create Music <span class="highlight">Instantly</span></h1>
+        <p class="sub">Professional AI music generation. No credits. No limits.</p>
+
+        <div class="studio-card">
+            <!-- Input -->
+            <div class="input-group">
+                <label class="label">Prompt</label>
+                <input type="text" id="prompt-input" class="input-main" placeholder="A chill lo-fi beat with vinyl crackle...">
+            </div>
+
+            <!-- Style Chips -->
+            <div class="input-group">
+                <label class="label">Style</label>
+                <div class="styles" id="style-container">
+                    <div class="chip active" data-val="Cinematic">Cinematic</div>
+                    <div class="chip" data-val="Electronic">Electronic</div>
+                    <div class="chip" data-val="Pop">Pop</div>
+                    <div class="chip" data-val="Jazz">Jazz</div>
+                    <div class="chip" data-val="Rock">Rock</div>
+                    <div class="chip" data-val="Classical">Classical</div>
+                </div>
+            </div>
+
+            <!-- Button -->
+            <button id="gen-btn" class="btn-generate" onclick="handleGenerate()">
+                Create Track
+            </button>
+
+            <!-- Player -->
+            <div id="player-wrapper" class="player-wrapper">
+                <audio id="audio-player" controls></audio>
+            </div>
+            <div id="loader" class="loader" style="display:none;">
+                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="modal" class="modal-overlay" onclick="if(event.target === this) closeModal()">
+        <div class="modal">
+            <h2>Welcome Back</h2>
+            <p>Enter your email to start generating.</p>
+            <input type="email" id="email-input" placeholder="you@example.com">
+            <button onclick="handleAuth()">Start Creating</button>
+        </div>
+    </div>
+
+    <footer>
+        &copy; 2023 Renzo AI. All Rights Reserved.
+    </footer>
+
+    <script>
+        // --- CONFIGURATION ---
+        // CHANGE THIS to your deployed Render URL later
+        const API_URL = "https://renzo-api.onrender.com";
+        
+        let USER = JSON.parse(localStorage.getItem('renzoUser'));
+        let STYLE = 'Cinematic';
+
+        // --- INIT ---
+        document.querySelectorAll('.chip').forEach(c => {
+            c.onclick = () => {
+                document.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
+                c.classList.add('active');
+                STYLE = c.dataset.val;
+            };
+        });
+
+        updateUI();
+
+        function updateUI() {
+            const btn = document.getElementById('auth-btn');
+            const disp = document.getElementById('user-display');
+            if(USER) {
+                btn.innerText = 'Logout';
+                btn.className = 'btn-nav';
+                disp.style.display = 'inline';
+                disp.innerText = USER.email.split('@')[0];
+            } else {
+                btn.innerText = 'Login';
+                btn.className = 'btn-nav primary';
+                disp.style.display = 'none';
+            }
+        }
+
+        // --- AUTH ---
+        function openModal() {
+            if(USER) { 
+                localStorage.removeItem('renzoUser'); 
+                USER = null; 
+                updateUI(); 
+                return; 
+            }
+            document.getElementById('modal').style.display = 'flex';
+        }
+        function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+        async function handleAuth() {
+            const email = document.getElementById('email-input').value;
+            if(!email) return;
+            try {
+                const res = await fetch(`${API_URL}/auth`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email})
+                });
+                const data = await res.json();
+                USER = { id: data.user_id, email: data.email };
+                localStorage.setItem('renzoUser', JSON.stringify(USER));
+                closeModal();
+                updateUI();
+            } catch(e) { alert("Connection error"); }
+        }
+
+        // --- GENERATE ---
+        async function handleGenerate() {
+            if(!USER) return openModal();
+            
+            const prompt = document.getElementById('prompt-input').value;
+            if(!prompt) return;
+
+            const btn = document.getElementById('gen-btn');
+            const loader = document.getElementById('loader');
+            const player = document.getElementById('player-wrapper');
+
+            // Loading State
+            btn.disabled = true;
+            btn.innerHTML = `<div class="spinner"></div>`;
+            player.style.display = 'none';
+            loader.style.display = 'flex';
+
+            try {
+                const res = await fetch(`${API_URL}/generate`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        user_id: USER.id,
+                        style: STYLE
+                    })
+                });
+                const data = await res.json();
+                
+                if(data.audio_url) {
+                    const audio = document.getElementById('audio-player');
+                    audio.src = data.audio_url;
+                    player.style.display = 'block';
+                    audio.play();
+                } else {
+                    alert("Error: " + (data.message || "Unknown error"));
+                }
+            } catch(e) {
+                alert("Network Error. Check console.");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Create Track";
+                loader.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
